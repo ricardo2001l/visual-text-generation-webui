@@ -1,0 +1,5 @@
+torch>=2.0.0
+transformers>=4.33.0
+gradio>=3.28.0
+pillow>=9.0.0
+pyyaml>=6.0
