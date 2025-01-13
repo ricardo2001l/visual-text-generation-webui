@@ -8,10 +8,10 @@ import gradio as gr
 
 # Load model and processor
 torch.cuda.empty_cache()
-model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
+model_id = "huihui-ai/Llama-3.2-11B-Vision-Instruct-abliterated"
 
 model = MllamaForConditionalGeneration.from_pretrained(
-    model_id,
+    pretrained_model_name_or_path=model_id,
     low_cpu_mem_usage=True,
     torch_dtype=torch.float16,
     device_map="auto",
@@ -35,7 +35,7 @@ def load_characters(characters_folder="characters"):
                 character_data = yaml.safe_load(f)
                 characters[character_data["name"]] = {
                     "greeting": character_data.get("greeting", ""),
-                    "context": character_data.get("context", ""),
+                    "context": "You act as "+character_data["name"]+" You are: "+ character_data["name"] + " and this is your behaiviour: " + character_data.get("context", ""),
                     "image": os.path.join(characters_folder, f"{character_data['name']}.png"),
                 }
     return characters
@@ -83,7 +83,7 @@ def chat_step(user_input, uploaded_image, selected_character, chat_history):
 
     # Generate response
     model.gradient_checkpointing_enable()
-    output = model.generate(**inputs, max_new_tokens=256)
+    output = model.generate(**inputs, max_new_tokens=4096)
     model_response = processor.decode(output[0])
 
     # Extract the last assistant response
@@ -126,6 +126,10 @@ def update_character_details(selected_character):
     character = characters[selected_character]
     return character["image"], character["context"]
 
+# Chat function with reset capability
+def reset_chat():
+    return [], gr.update(value=None), gr.update(value=None), []
+
 # Gradio interface
 with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
     # Title
@@ -161,6 +165,7 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
                 user_input = gr.Textbox(lines=1, placeholder="Enter your message here", label="Message")
                 submit_btn = gr.Button("Send")
                 upload_image = gr.Image(label="Attach Image (optional)", type="filepath")
+                reset_btn = gr.Button("Reset Chat")  # Add Reset Button
         # Hidden state for chat
         chat_history = gr.State([])
 
@@ -176,6 +181,12 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             chat_step,
             inputs=[user_input, upload_image, selected_character, chat_history],
             outputs=[chatbox, upload_image, user_input]
+        )
+
+        # Reset chat interaction
+        reset_btn.click(
+            reset_chat,
+            outputs=[chatbox, upload_image, user_input, chat_history]
         )
 
     with gr.Tab("Create New Character"):
@@ -194,6 +205,5 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             inputs=[name_input, greeting_input, context_input, new_character_image],
             outputs=[save_message, new_character_image]
         )
-
 # Launch the Gradio app
 demo.launch()
