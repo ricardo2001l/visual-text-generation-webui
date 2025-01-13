@@ -1,9 +1,14 @@
 import gradio as gr
-from utils.settings import load_settings, save_settings
-from utils.model_loader import load_model
-from utils.character_manager import load_characters, save_new_character
-from utils.chat_handler import chat_step
-from utils.metadata_parser import parse_image_metadata
+import os
+from utils import (
+    load_settings,
+    save_settings,
+    load_model,
+    load_characters,
+    save_new_character,
+    chat_step,
+    parse_image_metadata,
+)
 
 # Load settings
 settings = load_settings()
@@ -11,6 +16,13 @@ settings = load_settings()
 # Load characters
 characters = load_characters(settings["characters_folder"])
 character_names = list(characters.keys())
+
+# Function to list available models
+def list_models():
+    models_dir = "models"
+    if not os.path.exists(models_dir):
+        os.makedirs(models_dir)
+    return [name for name in os.listdir(models_dir) if os.path.isdir(os.path.join(models_dir, name))]
 
 # Gradio interface
 with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
@@ -25,7 +37,8 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
 
     with gr.Tab("Load Model"):
         gr.Markdown("### Load a Custom Model")
-        model_id_input = gr.Textbox(placeholder="Enter model ID or local path", label="Model HugginFace ID (example: meta-llama/Llama-3.2-11B-Vision-Instruct)")
+        model_id_input = gr.Textbox(placeholder="Enter model ID or local path", label="Model HuggingFace ID (example: meta-llama/Llama-3.2-11B-Vision-Instruct)")
+        model_dropdown = gr.Dropdown(choices=list_models(), label="Available Models", interactive=True)
         device_map_input = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings["device_map"], label="Device Map")
         load_in_4bit_input = gr.Checkbox(value=settings["load_in_4bit"], label="Load in 4-bit")
         torch_dtype_input = gr.Dropdown(choices=["float16", "float32"], value=settings["torch_dtype"], label="Torch Dtype")
@@ -37,6 +50,13 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             load_model,
             inputs=[model_id_input, device_map_input, load_in_4bit_input, torch_dtype_input],
             outputs=load_model_status
+        )
+
+        # Update the model ID input when a model is selected from the dropdown
+        model_dropdown.change(
+            lambda model_name: os.path.join("models", model_name),
+            inputs=model_dropdown,
+            outputs=model_id_input
         )
 
     with gr.Tab("Chat with Character"):
