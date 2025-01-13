@@ -2,3 +2,4 @@
 !characters/Assistant.yaml
 models/*
 !models/put your models here.txt
+*__pycache__
