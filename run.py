@@ -2,7 +2,7 @@ import os
 import re
 import yaml
 import torch
-from PIL import Image, ExifTags
+from PIL import Image
 from transformers import MllamaForConditionalGeneration, AutoProcessor
 import gradio as gr
 import base64
@@ -11,6 +11,33 @@ import json
 # Global variables for model and processor
 model = None
 processor = None
+
+# Load settings from settings.yaml
+def load_settings():
+    if not os.path.exists("settings.yaml"):
+        # Create default settings if the file doesn't exist
+        default_settings = {
+            "device_map": "auto",
+            "load_in_4bit": True,
+            "torch_dtype": "float16",
+            "characters_folder": "characters",
+            "max_new_tokens": 4096,
+            "temperature": 0.7,
+        }
+        with open("settings.yaml", "w") as f:
+            yaml.dump(default_settings, f)
+        return default_settings
+    else:
+        with open("settings.yaml", "r") as f:
+            return yaml.safe_load(f)
+
+# Save settings to settings.yaml
+def save_settings(settings):
+    with open("settings.yaml", "w") as f:
+        yaml.dump(settings, f)
+
+# Load settings
+settings = load_settings()
 
 # Function to load a model
 def load_model(model_id, device_map, load_in_4bit, torch_dtype):
@@ -23,7 +50,7 @@ def load_model(model_id, device_map, load_in_4bit, torch_dtype):
         model = MllamaForConditionalGeneration.from_pretrained(
             pretrained_model_name_or_path=model_id,
             low_cpu_mem_usage=True,
-            torch_dtype=torch_dtype,
+            torch_dtype=getattr(torch, torch_dtype),
             device_map=device_map,
             load_in_4bit=load_in_4bit,
             bnb_4bit_compute_dtype=torch.float16,
@@ -53,7 +80,7 @@ def load_characters(characters_folder="characters"):
     return characters
 
 # Load characters
-characters = load_characters()
+characters = load_characters(settings["characters_folder"])
 character_names = list(characters.keys())
 
 # Chat function
@@ -100,7 +127,7 @@ def chat_step(user_input, uploaded_image, selected_character, chat_history):
     # Generate response
     try:
         model.gradient_checkpointing_enable()
-        output = model.generate(**inputs, max_new_tokens=4096)
+        output = model.generate(**inputs, max_new_tokens=settings["max_new_tokens"], temperature=settings["temperature"])
         model_response = processor.decode(output[0])
 
         # Extract the last assistant response
@@ -157,7 +184,7 @@ def save_new_character(name, greeting, context, character_image):
     }
 
     # Save YAML file
-    characters_folder = "characters"
+    characters_folder = settings["characters_folder"]
     os.makedirs(characters_folder, exist_ok=True)
 
     character_data_file = os.path.join(characters_folder, f"{name}.yaml")
@@ -170,7 +197,7 @@ def save_new_character(name, greeting, context, character_image):
 
     # Reload characters after saving new character
     global characters
-    characters = load_characters()
+    characters = load_characters(characters_folder)
     return f"Character {name} has been saved successfully!", character_image
 
 # Update character details
@@ -181,6 +208,20 @@ def update_character_details(selected_character):
 # Chat function with reset capability
 def reset_chat():
     return [], gr.update(value=None), gr.update(value=None), []
+
+# Function to update settings
+def update_settings(device_map, load_in_4bit, torch_dtype, characters_folder, max_new_tokens, temperature):
+    global settings
+    settings = {
+        "device_map": device_map,
+        "load_in_4bit": load_in_4bit,
+        "torch_dtype": torch_dtype,
+        "characters_folder": characters_folder,
+        "max_new_tokens": max_new_tokens,
+        "temperature": temperature,
+    }
+    save_settings(settings)
+    return "Settings updated successfully!"
 
 # Gradio interface
 with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
@@ -196,9 +237,9 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
     with gr.Tab("Load Model"):
         gr.Markdown("### Load a Custom Model")
         model_id_input = gr.Textbox(placeholder="Enter model ID or local path", label="Model ID/Path")
-        device_map_input = gr.Dropdown(choices=["auto", "cpu", "cuda"], value="auto", label="Device Map")
-        load_in_4bit_input = gr.Checkbox(value=True, label="Load in 4-bit")
-        torch_dtype_input = gr.Dropdown(choices=["float16", "float32"], value="float16", label="Torch Dtype")
+        device_map_input = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings["device_map"], label="Device Map")
+        load_in_4bit_input = gr.Checkbox(value=settings["load_in_4bit"], label="Load in 4-bit")
+        torch_dtype_input = gr.Dropdown(choices=["float16", "float32"], value=settings["torch_dtype"], label="Torch Dtype")
         load_model_button = gr.Button("Load Model")
         load_model_status = gr.Textbox(label="Model Loading Status", interactive=False)
 
@@ -284,6 +325,24 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             parse_image_metadata,  # Function to parse metadata
             inputs=new_character_image,  # Input is the uploaded image
             outputs=[name_input, context_input, greeting_input]  # Outputs are the three textboxes
+        )
+
+    with gr.Tab("Settings"):
+        gr.Markdown("### App Settings")
+        device_map_setting = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings["device_map"], label="Device Map")
+        load_in_4bit_setting = gr.Checkbox(value=settings["load_in_4bit"], label="Load in 4-bit")
+        torch_dtype_setting = gr.Dropdown(choices=["float16", "float32"], value=settings["torch_dtype"], label="Torch Dtype")
+        characters_folder_setting = gr.Textbox(value=settings["characters_folder"], label="Characters Folder")
+        max_new_tokens_setting = gr.Number(value=settings["max_new_tokens"], label="Max New Tokens")
+        temperature_setting = gr.Slider(minimum=0.1, maximum=1.0, value=settings["temperature"], label="Temperature")
+        save_settings_button = gr.Button("Save Settings")
+        save_settings_status = gr.Textbox(label="Save Status", interactive=False)
+
+        # Interaction for saving settings
+        save_settings_button.click(
+            update_settings,
+            inputs=[device_map_setting, load_in_4bit_setting, torch_dtype_setting, characters_folder_setting, max_new_tokens_setting, temperature_setting],
+            outputs=save_settings_status
         )
 
 # Launch the Gradio app
