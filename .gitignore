@@ -1,3 +1,4 @@
 /characters/*
 !characters/Assistant.yaml
 models/*
+!models/put your models here.txt
