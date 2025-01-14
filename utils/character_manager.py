@@ -1,6 +1,8 @@
 import os
 import yaml
 
+from utils import settings
+
 def load_characters(characters_folder="characters"):
     characters = {}
     for file in os.listdir(characters_folder):
@@ -14,7 +16,7 @@ def load_characters(characters_folder="characters"):
                 }
     return characters
 
-def save_new_character(name, greeting, context, character_image, characters_folder):
+def save_new_character(name, greeting, context, character_image):
     # Create character data
     new_character = {
         "name": name,
@@ -23,13 +25,13 @@ def save_new_character(name, greeting, context, character_image, characters_fold
     }
 
     # Save YAML file
-    os.makedirs(characters_folder, exist_ok=True)
-    character_data_file = os.path.join(characters_folder, f"{name}.yaml")
+    os.makedirs(settings.characters_folder, exist_ok=True)
+    character_data_file = os.path.join(settings.characters_folder, f"{name}.yaml")
     with open(character_data_file, "w") as f:
         yaml.dump(new_character, f)
 
     # Save character image
-    image_path = os.path.join(characters_folder, f"{name}.png")
+    image_path = os.path.join(settings.characters_folder, f"{name}.png")
     character_image.save(image_path)
 
     return f"Character {name} has been saved successfully!", character_image

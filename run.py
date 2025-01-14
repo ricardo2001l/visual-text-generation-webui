@@ -1,21 +1,16 @@
 import gradio as gr
 import os
 from utils import (
-    load_settings,
     save_settings,
     load_model,
-    load_characters,
     save_new_character,
     chat_step,
     parse_image_metadata,
+    settings,
 )
 
-# Load settings
-settings = load_settings()
+settings.init()
 
-# Load characters
-characters = load_characters(settings["characters_folder"])
-character_names = list(characters.keys())
 
 # Function to list available models
 def list_models():
@@ -39,9 +34,9 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
         gr.Markdown("### Load a Custom Model")
         model_id_input = gr.Textbox(placeholder="Enter model ID or local path", label="Model HuggingFace ID (example: meta-llama/Llama-3.2-11B-Vision-Instruct)")
         model_dropdown = gr.Dropdown(choices=list_models(), label="Available Models", interactive=True)
-        device_map_input = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings["device_map"], label="Device Map")
-        load_in_4bit_input = gr.Checkbox(value=settings["load_in_4bit"], label="Load in 4-bit")
-        torch_dtype_input = gr.Dropdown(choices=["float16", "float32"], value=settings["torch_dtype"], label="Torch Dtype")
+        device_map_input = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings.config["device_map"], label="Device Map")
+        load_in_4bit_input = gr.Checkbox(value=settings.config["load_in_4bit"], label="Load in 4-bit")
+        torch_dtype_input = gr.Dropdown(choices=["float16", "float32"], value=settings.config["torch_dtype"], label="Torch Dtype")
         load_model_button = gr.Button("Load Model")
         load_model_status = gr.Textbox(label="Model Loading Status", interactive=False)
 
@@ -50,7 +45,7 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             load_model,
             inputs=[model_id_input, device_map_input, load_in_4bit_input, torch_dtype_input],
             outputs=load_model_status
-        )
+        ) 
 
         # Update the model ID input when a model is selected from the dropdown
         model_dropdown.change(
@@ -65,8 +60,8 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             with gr.Column(scale=1):
                 gr.Markdown("### Character Selection")
                 selected_character = gr.Dropdown(
-                    choices=character_names,
-                    value=character_names[0],
+                    choices=settings.character_names,
+                    value=settings.character_names[0],
                     label="Choose a Character"
                 )
                 character_image = gr.Image(label="Character Image", type="filepath")
@@ -79,17 +74,18 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
             # Chat panel
             with gr.Column(scale=3):
                 gr.Markdown("### Chat Window")
-                chatbox = gr.Chatbot(label="Chat with the Character", elem_id="chatbox")
+                chatbox = gr.Chatbot(label="Chat with the Character", elem_id="chatbox", type="messages", avatar_images=settings.characters[selected_character.value]["image"])
                 user_input = gr.Textbox(lines=1, placeholder="Enter your message here", label="Message")
                 submit_btn = gr.Button("Send")
                 upload_image = gr.Image(label="Attach Image (optional)", type="filepath")
                 reset_btn = gr.Button("Reset Chat")
+                
         # Hidden state for chat
         chat_history = gr.State([])
 
         # Update character image and context
         selected_character.change(
-            lambda selected: (characters[selected]["image"], characters[selected]["context"]),
+            lambda selected: (settings.characters[selected]["image"], settings.characters[selected]["context"]),
             inputs=selected_character,
             outputs=[character_image, character_context]
         )
@@ -97,14 +93,19 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
         # Interaction for chatting
         submit_btn.click(
             chat_step,
-            inputs=[user_input, upload_image, selected_character, chat_history],
+            inputs=[
+                user_input, 
+                upload_image, 
+                selected_character, 
+                chat_history,
+            ],
             outputs=[chatbox, upload_image, user_input]
         )
 
         # Reset chat interaction
         reset_btn.click(
             lambda: ([], None, None, []),
-            outputs=[chatbox, upload_image, user_input, chat_history]
+            outputs=[chatbox, upload_image, user_input, chat_history, ]
         )
 
     with gr.Tab("Create New Character"):
@@ -138,12 +139,12 @@ with gr.Blocks(css=".chatbox {height: 400px; overflow-y: auto;}") as demo:
 
     with gr.Tab("Settings"):
         gr.Markdown("### App Settings")
-        device_map_setting = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings["device_map"], label="Device Map")
-        load_in_4bit_setting = gr.Checkbox(value=settings["load_in_4bit"], label="Load in 4-bit")
-        torch_dtype_setting = gr.Dropdown(choices=["float16", "float32"], value=settings["torch_dtype"], label="Torch Dtype")
-        characters_folder_setting = gr.Textbox(value=settings["characters_folder"], label="Characters Folder")
-        max_new_tokens_setting = gr.Number(value=settings["max_new_tokens"], label="Max New Tokens")
-        temperature_setting = gr.Slider(minimum=0.1, maximum=1.0, value=settings["temperature"], label="Temperature")
+        device_map_setting = gr.Dropdown(choices=["auto", "cpu", "cuda"], value=settings.config["device_map"], label="Device Map")
+        load_in_4bit_setting = gr.Checkbox(value=settings.config["load_in_4bit"], label="Load in 4-bit")
+        torch_dtype_setting = gr.Dropdown(choices=["float16", "float32"], value=settings.config["torch_dtype"], label="Torch Dtype")
+        characters_folder_setting = gr.Textbox(value=settings.config["characters_folder"], label="Characters Folder")
+        max_new_tokens_setting = gr.Number(value=settings.config["max_new_tokens"], label="Max New Tokens")
+        temperature_setting = gr.Slider(minimum=0.1, maximum=1.0, value=settings.config["temperature"], label="Temperature")
         save_settings_button = gr.Button("Save Settings")
         save_settings_status = gr.Textbox(label="Save Status", interactive=False)
 

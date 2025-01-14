@@ -2,5 +2,5 @@ characters_folder: characters
 device_map: auto
 load_in_4bit: true
 max_new_tokens: 4096
-temperature: 0.8
+temperature: 0.4
 torch_dtype: float16

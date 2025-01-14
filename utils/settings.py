@@ -1,5 +1,23 @@
 import os
 import yaml
+import gradio as gr
+
+from utils.character_manager import load_characters
+
+
+def init():
+    global config, characters, characters_folder, character_names # Load settings
+    config = load_settings()
+    
+    # Load characters# Load characters
+    characters = load_characters(config["characters_folder"])
+    character_names = list(characters.keys())
+    characters_folder = config["characters_folder"]
+
+    global model, processor
+    model = None
+    processor = None
+
 
 def load_settings():
     if not os.path.exists("settings.yaml"):

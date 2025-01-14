@@ -2,6 +2,8 @@ import os
 import torch
 from transformers import MllamaForConditionalGeneration, AutoProcessor
 
+from utils import settings
+
 def load_model(model_id_or_path, device_map, load_in_4bit, torch_dtype):
     try:
         # Clear GPU memory
@@ -19,7 +21,7 @@ def load_model(model_id_or_path, device_map, load_in_4bit, torch_dtype):
                 os.makedirs(model_path, exist_ok=True)
 
                 # Download the model and processor
-                model = MllamaForConditionalGeneration.from_pretrained(
+                settings.model = MllamaForConditionalGeneration.from_pretrained(
                     pretrained_model_name_or_path=model_id_or_path,
                     low_cpu_mem_usage=True,
                     torch_dtype=getattr(torch, torch_dtype),
@@ -31,15 +33,15 @@ def load_model(model_id_or_path, device_map, load_in_4bit, torch_dtype):
                     llm_int8_enable_fp32_cpu_offload=True,
                     llm_int8_threshold=6.0,
                 )
-                processor = AutoProcessor.from_pretrained(model_id_or_path)
+                settings.processor = AutoProcessor.from_pretrained(model_id_or_path)
 
                 # Save the model and processor to the local path
-                model.save_pretrained(model_path)
-                processor.save_pretrained(model_path)
-                print(f"Model saved to {model_path}")
+                settings.model.save_pretrained(model_path)
+                settings.processor.save_pretrained(model_path)
+                return f"Model '{model_id_or_path}' loaded successfully!"
 
         # Load the model and processor from the local path
-        model = MllamaForConditionalGeneration.from_pretrained(
+        settings.model = MllamaForConditionalGeneration.from_pretrained(
             pretrained_model_name_or_path=model_path,
             low_cpu_mem_usage=True,
             torch_dtype=getattr(torch, torch_dtype),
@@ -51,7 +53,7 @@ def load_model(model_id_or_path, device_map, load_in_4bit, torch_dtype):
             llm_int8_enable_fp32_cpu_offload=True,
             llm_int8_threshold=6.0,
         )
-        processor = AutoProcessor.from_pretrained(model_path)
+        settings.processor = AutoProcessor.from_pretrained(model_path)
 
         return f"Model '{model_id_or_path}' loaded successfully!"
     except Exception as e:
