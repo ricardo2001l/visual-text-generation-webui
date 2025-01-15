@@ -33,15 +33,15 @@ git clone https://github.com/ricardo2001l/visual-text-generation-webui.git
 cd visual-text-generation-webui
 ```
 
-2. Set the Model: The model [meta-llama/Llama-3.2-11B-Vision-Instruct](https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct/) is used for text generation. You need to download it using the transformers library or use any model of your choice. You can also choose a finetuned model based on llama 3.2 11B. You may be could also use another Vision model of this kind.
-
-3. Run the Web UI: Start the web interface by running:
-
-
+2. Run the Web UI: Start the web interface by running:
+3. 
 ```bash
 python run.py
 ```
-This will start a local web server at http://localhost:7860, where you can interact with the model and characters.
+This will start a local web server at http://localhost:7860, where you can load the model and then interact with the characters.
+
+3. Set the Model: On the model tab you can set the model [meta-llama/Llama-3.2-11B-Vision-Instruct](https://huggingface.co/meta-llama/Llama-3.2-11B-Vision-Instruct/) can be used is used for text generation. It will be downloaded on the models folder. Also you can also choose a finetuned model based on llama 3.2 11B. You may be could also use another Vision model of this kind.
+
 
 
 ### Contributing
