@@ -13,7 +13,11 @@ def chat_step(user_input, uploaded_image, selected_character, chat_history):
     role_message = {"role": "system", "content": character["context"]}
 
     # Prepare messages
-    messages = [role_message] + chat_history
+    messages = [role_message]
+    for msg in chat_history:
+        if not isinstance(msg['content'], str):
+            continue 
+        messages.append(msg)
 
     # Handle image and user input
     if uploaded_image:
